@@ -1,7 +1,8 @@
-const {Model, DataTypes} = require("sequelize");
-const sequelize = require("./index");
+import {DataTypes, Model} from "sequelize";
+import {sequelize} from "./dbconfig.js";
 
-class User extends Model {}
+class User extends Model {
+}
 
 User.init({
     id: {
@@ -9,11 +10,11 @@ User.init({
         primaryKey: true,
         autoIncrement: true
     },
-    firstName: {
+    firstname: {
         type: DataTypes.STRING,
-        allowNull: false
+        allowNull: false,
     },
-    lastName: {
+    lastname: {
         type: DataTypes.STRING,
         allowNull: false
     },
@@ -28,8 +29,10 @@ User.init({
     }
 }, {
     sequelize,
-    modelName: 'User',
+    modelName: 'user',
     tableName: 'users',
     timestamps: true,
     underscored: true,
 });
+
+export default User;

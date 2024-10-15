@@ -1,52 +1,28 @@
-const {Sequelize} = require('sequelize');
-const User = require("./User.model");
+import express from 'express';
+import cors from 'cors';
+import User from "./User.model.js";
+import {setUpDatabase} from "./dbconfig.js";
 
-const sequelize = new Sequelize({
-    host: 'localhost',
-    port: 5432,
-    database: 'postgres',
-    username: 'postgres',
-    password: 'postgres',
-    dialect: 'postgres'
+const app = express();
+
+app.use(express.json());
+app.use(cors());
+
+setUpDatabase()
+    .then(() => console.log('database setup successful'))
+    .catch(error => console.error('database setup failed', error));
+
+app.post('/api/user', async (req, res) => {
+    const {firstname, lastname, email, password} = req.body;
+
+    if (!firstname || !lastname || !email || !password) {
+        return res.status(400).json({message: 'All fields are required'});
+    }
+    const user = await User.create({firstname, lastname, email, password});
+    return res.status(201).json(user);
 });
 
-// connect database
-async function connectDatabase(){
-    try {
-        await sequelize.authenticate()
-            .then(() => console.log('Connection has been established successfully.'))
-            .catch(err => console.error('Unable to connect to the database:', err));
-    } catch (error) {
-        console.log('error connecting postgres...', error)
-    }
-}
-
-// create models
-async function createModels(){
-    try {
-        await sequelize.sync({force: true});
-        console.log('All models created successfully.');
-    } catch (error) {
-        console.log('error creating models...', error)
-    }
-}
-
-connectDatabase().then(() => {})
-createModels().then(() => {})
-
-async function createUser() {
-    try {
-        await User.create({
-            firstName: 'John',
-            lastName: 'Doe',
-            email: 'test@gmail.com',
-            password: '123456'
-        })
-    } catch (error) {
-        console.log('error creating user...', error)
-    }
-}
-
-createUser().then(() => {})
-
-module.exports = sequelize;
+app.listen(
+    3000,
+    () => console.log('server started on 3000')
+);
