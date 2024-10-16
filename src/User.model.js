@@ -26,10 +26,13 @@ User.init({
     password: {
         type: DataTypes.STRING,
         allowNull: false
+    },
+    profile: {
+        type: DataTypes.BLOB,
+        allowNull: true
     }
 }, {
     sequelize,
-    modelName: 'user',
     tableName: 'users',
     timestamps: true,
     underscored: true,

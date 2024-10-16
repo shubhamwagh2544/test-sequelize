@@ -12,7 +12,7 @@ const sequelize = new Sequelize({
 // connect database and sync models
 async function setUpDatabase() {
     await sequelize.authenticate()
-    await sequelize.sync({force: true});
+    await sequelize.sync({force: false});
 }
 
 export {
