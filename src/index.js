@@ -3,11 +3,25 @@ import cors from 'cors';
 import multer from 'multer';
 import _ from 'lodash';
 import path from 'path';
+
 import User from "./User.model.js";
-import {setUpDatabase} from "./dbconfig.js";
+import Role from "./Role.model.js";
+import {connectDatabase} from "./dbconfig.js";
+import {syncModels} from "./associations.js";
 
 const app = express();
 const storage = multer.memoryStorage();
+
+async function setUpDatabase() {
+    await connectDatabase();
+    await syncModels();
+}
+
+setUpDatabase().then(() => {
+    console.log('Database setup complete');
+}).catch(error => {
+    console.error('Error setting up the database:', error);
+});
 
 const upload = multer({
     storage,
@@ -31,18 +45,25 @@ const upload = multer({
 app.use(express.json());
 app.use(cors());
 
-setUpDatabase()
-    .then(() => console.log('database setup successful'))
-    .catch(error => console.error('database setup failed', error));
-
-app.post('/api/user', async (req, res) => {
+app.post('/api/users', async (req, res) => {
     const {firstname, lastname, email, password} = req.body;
 
     if (!firstname || !lastname || !email || !password) {
         return res.status(400).json({message: 'All fields are required'});
     }
-    const user = await User.create({firstname, lastname, email, password});
+    const user = await User.create({firstname, lastname, email, password, isActive: true});
     return res.status(201).json(user);
+});
+
+app.post('/api/roles', async (req, res) => {
+    const {name, description} = req.body;
+
+    if (!name || !description) {
+        return res.status(400).json({message: 'All fields are required'});
+    }
+
+    const role = await Role.create({name, description, isActive: true});
+    return res.status(201).json(role);
 });
 
 app.post('/api/user/:id/profile/upload', upload.single('file'), async (req, res) => {

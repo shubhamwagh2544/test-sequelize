@@ -1,35 +1,22 @@
 import {DataTypes, Model} from "sequelize";
 import {sequelize} from "./dbconfig.js";
 
-class User extends Model {
+class Role extends Model {
 }
 
-User.init({
+Role.init({
     id: {
         type: DataTypes.INTEGER,
         primaryKey: true,
         autoIncrement: true
     },
-    firstname: {
+    name: {
         type: DataTypes.STRING,
         allowNull: false,
     },
-    lastname: {
+    description: {
         type: DataTypes.STRING,
         allowNull: false
-    },
-    email: {
-        type: DataTypes.STRING,
-        unique: true,
-        allowNull: false
-    },
-    password: {
-        type: DataTypes.STRING,
-        allowNull: false
-    },
-    profile: {
-        type: DataTypes.BLOB,
-        allowNull: true
     },
     isActive: {
         type: DataTypes.BOOLEAN,
@@ -37,9 +24,9 @@ User.init({
     }
 }, {
     sequelize,
-    tableName: 'users',
+    tableName: 'roles',
     timestamps: true,
     underscored: true,
-});
+})
 
-export default User;
+export default Role;
