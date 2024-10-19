@@ -31,6 +31,10 @@ User.init(
       type: DataTypes.BLOB,
       allowNull: true,
     },
+    profileMimeType: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
     isActive: {
       type: DataTypes.BOOLEAN,
       allowNull: false,

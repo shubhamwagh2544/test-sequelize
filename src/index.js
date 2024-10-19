@@ -344,7 +344,7 @@ app.delete('/api/roles/:id', async (req, res) => {
 
 // upload profile picture for a user
 app.post(
-  '/api/user/:id/profile/upload',
+  '/api/users/:id/profile/upload',
   upload.single('file'),
   async (req, res) => {
     try {
@@ -369,17 +369,20 @@ app.post(
 
       // user found
       user.profile = file.buffer;
+      user.profileMimeType = file.mimetype; // Save the MIME type
       await user.save();
 
       // return user without profile buffer
       user = await User.findOne(
         {
-          id,
-          isActive: true,
+          where: {
+            id,
+            isActive: true,
+          },
         },
         {
           attributes: {
-            exclude: ['profile', 'password'],
+            exclude: ['profile', 'profileMimeType', 'password'],
           },
         }
       );
@@ -394,6 +397,48 @@ app.post(
     }
   }
 );
+
+// download user profile
+// TODO ? Not Working
+app.get('/api/users/:id/profile/download', async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (_.isNil(id)) {
+      return res.status(400).json({ message: 'User id is required' });
+    }
+
+    const user = await User.findOne({
+      where: {
+        id,
+        isActive: true,
+      },
+      attributes: ['profile', 'profileMimeType'],
+    });
+    if (
+      _.isNil(user) ||
+      _.isNil(user.profile) ||
+      _.isNil(user.profileMimeType)
+    ) {
+      return res
+        .status(404)
+        .json({ message: 'User or Profile or ProfileMimeType not found' });
+    }
+
+    // set the content type based on the profile buffer type (image or document)
+    const profile = user.dataValues.profile;
+    const mimetype = user.dataValues.profileMimeType;
+
+    res.setHeader('Content-Disposition', 'attachment; filename=profile');
+    res.setHeader('Content-Type', mimetype);
+
+    res.send(profile);
+  } catch (error) {
+    console.log('Error downloading profile picture', error);
+    return res
+      .status(500)
+      .json({ message: 'Error downloading profile picture' });
+  }
+});
 
 // assign role to a user
 app.post('/api/user/:userId/role/:roleId/assign', async (req, res) => {

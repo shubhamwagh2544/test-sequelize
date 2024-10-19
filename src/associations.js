@@ -9,6 +9,6 @@ User.belongsToMany(Role, { through: UserRole, foreignKey: 'userId' });
 
 // Sync all models
 export async function syncModels() {
-  await sequelize.sync({ force: false });
+  await sequelize.sync({ force: true });
   console.log('All models synced successfully.');
 }
