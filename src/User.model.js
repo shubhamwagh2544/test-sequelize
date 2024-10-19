@@ -1,45 +1,52 @@
-import {DataTypes, Model} from "sequelize";
-import {sequelize} from "./dbconfig.js";
+import { DataTypes, Model } from 'sequelize';
+import { sequelize } from './dbconfig.js';
 
-class User extends Model {
-}
+class User extends Model {}
 
-User.init({
+User.init(
+  {
     id: {
-        type: DataTypes.INTEGER,
-        primaryKey: true,
-        autoIncrement: true
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
     },
     firstname: {
-        type: DataTypes.STRING,
-        allowNull: false,
+      type: DataTypes.STRING,
+      allowNull: false,
     },
     lastname: {
-        type: DataTypes.STRING,
-        allowNull: false
+      type: DataTypes.STRING,
+      allowNull: false,
     },
     email: {
-        type: DataTypes.STRING,
-        unique: true,
-        allowNull: false
+      type: DataTypes.STRING,
+      unique: true,
+      allowNull: false,
     },
     password: {
-        type: DataTypes.STRING,
-        allowNull: false
+      type: DataTypes.STRING,
+      allowNull: false,
     },
     profile: {
-        type: DataTypes.BLOB,
-        allowNull: true
+      type: DataTypes.BLOB,
+      allowNull: true,
     },
     isActive: {
-        type: DataTypes.BOOLEAN,
-        allowNull: false,
-    }
-}, {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+    },
+  },
+  {
     sequelize,
     tableName: 'users',
     timestamps: true,
     underscored: true,
-});
+    defaultScope: {
+      attributes: {
+        exclude: ['profile'],
+      },
+    },
+  }
+);
 
 export default User;
