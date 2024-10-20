@@ -47,7 +47,7 @@ User.init(
     underscored: true,
     defaultScope: {
       attributes: {
-        exclude: ['profile'],
+        exclude: ['profile', 'profileMimeType', 'password'],
       },
     },
   }

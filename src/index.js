@@ -10,6 +10,7 @@ import { connectDatabase } from './dbconfig.js';
 import { syncModels } from './associations.js';
 import UserRole from './UserRole.model.js';
 import Post from './Post.model.js';
+import Profile from './Profile.model.js';
 
 const app = express();
 const storage = multer.memoryStorage();
@@ -205,6 +206,7 @@ app.delete('/api/users/:id', async (req, res) => {
     await user.update({ isActive: false });
     await UserRole.update({ isActive: false }, { where: { userId: id } });
     await Post.destroy({ where: { userId: id } });
+    await Profile.update({ isActive: false }, { where: { userId: id } });
 
     return res.status(200).json({ message: 'User deleted successfully' });
   } catch (error) {
@@ -546,6 +548,60 @@ app.get('/api/posts/:id/user', async (req, res) => {
   } catch (error) {
     console.log('Error getting user of post', error);
     return res.status(500).json({ message: 'Error getting user of post' });
+  }
+});
+
+// get user profile
+app.get('/api/users/:id/profile', async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (_.isNil(id)) {
+      return res.status(400).json({ message: 'User id is required' });
+    }
+
+    const user = await User.findOne({
+      where: {
+        id,
+        isActive: true,
+      },
+    });
+    if (_.isNil(user)) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const profile = await user.getProfile();
+
+    return res.status(200).json(profile);
+  } catch (error) {
+    console.log('Error getting user profile', error);
+    return res.status(500).json({ message: 'Error getting user profile' });
+  }
+});
+
+// get user of profile
+app.get('/api/profiles/:id/user', async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (_.isNil(id)) {
+      return res.status(400).json({ message: 'Profile id is required' });
+    }
+
+    const profile = await Profile.findOne({
+      where: {
+        id,
+        isActive: true,
+      },
+    });
+    if (_.isNil(profile)) {
+      return res.status(404).json({ message: 'Profile not found' });
+    }
+
+    const user = await profile.getUser();
+
+    return res.status(200).json(user);
+  } catch (error) {
+    console.log('Error getting user of profile', error);
+    return res.status(500).json({ message: 'Error getting user of profile' });
   }
 });
 
