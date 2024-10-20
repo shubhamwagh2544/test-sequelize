@@ -9,6 +9,7 @@ import Role from './Role.model.js';
 import { connectDatabase } from './dbconfig.js';
 import { syncModels } from './associations.js';
 import UserRole from './UserRole.model.js';
+import Post from './Post.model.js';
 
 const app = express();
 const storage = multer.memoryStorage();
@@ -70,7 +71,19 @@ app.post('/api/users', async (req, res) => {
     if (!firstname || !lastname || !email || !password) {
       return res.status(400).json({ message: 'All fields are required' });
     }
-    const user = await User.create({
+
+    // check if user exists
+    let user = await User.findOne({
+      where: {
+        email,
+        isActive: true,
+      },
+    });
+    if (!_.isNil(user)) {
+      return res.status(400).json({ message: 'User already exists' });
+    }
+
+    user = await User.create({
       firstname,
       lastname,
       email,
@@ -191,6 +204,7 @@ app.delete('/api/users/:id', async (req, res) => {
 
     await user.update({ isActive: false });
     await UserRole.update({ isActive: false }, { where: { userId: id } });
+    await Post.destroy({ where: { userId: id } });
 
     return res.status(200).json({ message: 'User deleted successfully' });
   } catch (error) {
@@ -208,7 +222,18 @@ app.post('/api/roles', async (req, res) => {
       return res.status(400).json({ message: 'All fields are required' });
     }
 
-    const role = await Role.create({ name, description, isActive: true });
+    // check if role exists
+    let role = await Role.findOne({
+      where: {
+        name,
+        isActive: true,
+      },
+    });
+    if (!_.isNil(role)) {
+      return res.status(400).json({ message: 'Role already exists' });
+    }
+
+    role = await Role.create({ name, description, isActive: true });
     return res.status(201).json(role);
   } catch (error) {
     console.log('Error creating role', error);
@@ -339,6 +364,188 @@ app.delete('/api/roles/:id', async (req, res) => {
   } catch (error) {
     console.log('Error deleting role', error);
     return res.status(500).json({ message: 'Error deleting role' });
+  }
+});
+
+// create a post
+app.post('/api/posts', async (req, res) => {
+  try {
+    const { title, content, userId } = req.body;
+    if (!title || !content || !userId) {
+      return res.status(400).json({ message: 'All fields are required' });
+    }
+
+    const user = await User.findOne({
+      where: {
+        id: userId,
+        isActive: true,
+      },
+    });
+    if (_.isNil(user)) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // create a post
+    const post = await Post.create({
+      title,
+      content,
+      userId,
+    });
+
+    return res.status(201).json({ message: 'Post created successfully', post });
+  } catch (error) {
+    console.log('Error creating a post', error);
+    return res.status(500).json({ message: 'Error creating a post' });
+  }
+});
+
+// get all posts
+app.get('/api/posts', async (req, res) => {
+  try {
+    const posts = await Post.findAll({
+      // include: {
+      //   model: User,
+      //   attributes: ['id', 'email'],
+      // },
+    });
+    return res.status(200).json(posts);
+  } catch (error) {
+    console.log('Error fetching all posts', error);
+    return res.status(500).json({ message: 'Error fetching all posts' });
+  }
+});
+
+// get a post
+app.get('/api/posts/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (!id) {
+      return res.status(400).json({ message: 'Post id is required' });
+    }
+
+    const post = await Post.findOne({
+      where: {
+        id,
+      },
+    });
+    if (_.isNil(post)) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    return res.status(200).json(post);
+  } catch (error) {
+    console.log('Error getting post', error);
+    return res.status(500).json({ message: 'Error getting post' });
+  }
+});
+
+// update a post
+app.put('/api/posts/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (!id) {
+      return res.status(400).json({ message: 'Post id is required' });
+    }
+
+    const { title, content } = req.body;
+    if (!title || !content) {
+      return res.status(400).json({ message: 'All fields are required' });
+    }
+
+    const post = await Post.findOne({
+      where: {
+        id,
+      },
+    });
+    if (_.isNil(post)) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    await post.update(req.body);
+
+    return res.status(200).json({ message: 'Post updated successfully' });
+  } catch (error) {
+    console.log('Error updating post', error);
+    return res.status(500).json({ message: 'Error updating post' });
+  }
+});
+
+// delete a post
+app.delete('/api/posts/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (!id) {
+      return res.status(400).json({ message: 'Post id is required' });
+    }
+
+    const post = await Post.findOne({
+      where: {
+        id,
+      },
+    });
+    if (_.isNil(post)) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    await post.destroy();
+
+    return res.status(200).json({ message: 'Post deleted successfully' });
+  } catch (error) {
+    console.log('Error deleting post', error);
+    return res.status(500).json({ message: 'Error deleting post' });
+  }
+});
+
+// get posts of user
+app.get('/api/users/:id/posts', async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (!id) {
+      return res.status(400).json({ message: 'User id is required' });
+    }
+
+    const user = await User.findOne({
+      where: {
+        id,
+        isActive: true,
+      },
+    });
+    if (_.isNil(user)) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const posts = await user.getPosts();
+
+    return res.status(200).json(posts);
+  } catch (error) {
+    console.log('Error getting posts of user', error);
+    return res.status(500).json({ message: 'Error getting posts of user' });
+  }
+});
+
+// get user of post
+app.get('/api/posts/:id/user', async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (!id) {
+      return res.status(400).json({ message: 'Post id is required' });
+    }
+
+    const post = await Post.findOne({
+      where: {
+        id,
+      },
+    });
+    if (_.isNil(post)) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    const user = await post.getUser();
+
+    return res.status(200).json(user);
+  } catch (error) {
+    console.log('Error getting user of post', error);
+    return res.status(500).json({ message: 'Error getting user of post' });
   }
 });
 
