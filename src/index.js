@@ -1,8 +1,10 @@
 import express from 'express';
 import cors from 'cors';
+import moment from "moment";
 import multer from 'multer';
 import _ from 'lodash';
 import path from 'path';
+import xlsx from 'xlsx';
 
 import User from './User.model.js';
 import Role from './Role.model.js';
@@ -29,40 +31,156 @@ setUpDatabase()
     console.error('Error setting up the database:', error);
   });
 
+const pngFilter = function (req, file, cb) {
+  const filetypes = ['.png'];
+  const mimetypes = ['image/png'];
+  const fileExtensionName = path.extname(file.originalname)
+
+  const extname = _.includes(filetypes, fileExtensionName);
+  const mimetype = _.includes(mimetypes, file.mimetype);
+
+  if (extname && mimetype) {
+    return cb(null, true);
+  } else {
+    return cb(new Error('Only PNG image allowed!'));
+  }
+};
+
+const xlsxFilter = function (req, file, cb) {
+    const filetypes = ['.xlsx'];
+    const mimetypes = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
+    const fileExtensionName = path.extname(file.originalname)
+
+    const extname = _.includes(filetypes, fileExtensionName);
+    const mimetype = _.includes(mimetypes, file.mimetype);
+
+    if (extname && mimetype) {
+        return cb(null, true);
+    } else {
+        return cb(new Error('Only XLSX file allowed!'));
+    }
+};
+
 // multer middleware
 const upload = multer({
+  fileFilter: xlsxFilter,
   storage,
   limits: {
     fileSize: 5 * 1024 * 1024,
   },
-  fileFilter: function (req, file, cb) {
-    const filetypes = /jpeg|jpg|png|pdf|docx|webp/;
-    const mimetypes = [
-      'image/jpeg',
-      'image/png',
-      'application/pdf',
-      'application/vnd',
-      'image/webp',
-    ];
-    const extname = filetypes.test(
-      path.extname(file.originalname).toLowerCase()
-    );
-    const mimetype = _.includes(mimetypes, file.mimetype);
-
-    if (extname && mimetype) {
-      return cb(null, true);
-    } else {
-      cb(
-        new Error(
-          'Only images and documents (jpeg, jpg, png, pdf, docx) are allowed!'
-        )
-      );
-    }
-  },
-});
+}).single('file');
 
 app.use(express.json());
 app.use(cors());
+
+// bulk create users
+app.post('/api/users/bulk', async (req, res) => {
+    try {
+        const users = req.body;
+        if (!users.length) {
+        return res.status(400).json({ message: 'No users found' });
+        }
+
+        // bulk create users
+        await User.bulkCreate(users);
+        return res.status(201).json({ message: 'Users bulk created successfully' });
+    } catch (error) {
+        console.log('Error importing users', error);
+        return res.status(500).json({ message: 'Error bulk creating users' });
+    }
+});
+
+// bulk import users
+app.post('/api/users/import',
+    (req, res, next) => {
+    upload(req, res, (err) => {
+      if (err) {
+        return res.status(400).json({ message: err.message });
+      }
+      next();
+    });
+    },
+    async (req, res) => {
+  try {
+    const excelFile = req.file;
+    if (!excelFile) {
+      return res.status(400).json({ message: 'No file found' });
+    }
+
+    // bulk import users
+    const workBook = xlsx.read(excelFile.buffer, {type: 'buffer'});   // reading from memory storage (not disk storage) hence read and not readFile
+    const sheetName = workBook.SheetNames[0];
+    const sheet = workBook.Sheets[sheetName];
+
+    // convert sheet to json
+    // const users = xlsx.utils.sheet_to_json(sheet);
+
+    // data validation
+    const users = xlsx.utils.sheet_to_json(sheet, {header: 1});
+    if (!users.length) {
+      return res.status(400).json({ message: 'Empty File' });
+    }
+
+    const userHeaders = users[0];
+    const userAttributes = Object.keys(_.groupBy(User.getAttributes(), 'field'));
+
+    let errorObject = "";
+    _.each(userAttributes, (attribute) => {
+        if (!_.includes(userHeaders, attribute)) {
+          errorObject += `${attribute}`
+        }
+    });
+    if (errorObject !== "") {
+      return res.status(400).json({ message: `Missing ${errorObject} in the file` });
+    }
+
+    const userData = users.slice(1);
+    const userObjects = [];
+    for (const dataArray of userData) {
+      if (dataArray.length > 0) {
+        // check if user exists in db
+        const user = await User.findOne({
+          where: {
+            id: dataArray[0],
+            isActive: true
+          }
+        });
+        if (user) {
+          if (dataArray[1] !== user.firstname || dataArray[2] !== user.lastname || dataArray[3] !== user.email || dataArray[4] !== user.password || dataArray[7] !== user.isActive || dataArray[8] !== user.createdAt || dataArray[9] !== user.updatedAt) {
+            await user.update({
+              firstname: dataArray[1],
+              lastname: dataArray[2],
+              email: dataArray[3],
+              password: dataArray[4],
+              isActive: dataArray[7],
+              createdAt: moment(dataArray[8]).format('YYYY-MM-DD'),
+              updatedAt: moment(dataArray[9]).format('YYYY-MM-DD'),
+            })
+          }
+        } else {
+          userObjects.push({
+            id: dataArray[0],
+            firstname: dataArray[1],
+            lastname: dataArray[2],
+            email: dataArray[3],
+            password: dataArray[4],
+            isActive: dataArray[7],
+            createdAt: moment(dataArray[8]).format('YYYY-MM-DD'),
+            updatedAt: moment(dataArray[9]).format('YYYY-MM-DD'),
+          });
+        }
+      }
+
+    }
+
+    // bulk create users
+    userObjects.length ? await User.bulkCreate(userObjects) : null;
+    return res.status(201).json({ message: 'Users imported successfully' });
+  } catch (error) {
+    console.log('Error importing users', error);
+    return res.status(500).json({ message: 'Error importing users' });
+  }
+});
 
 // create a user
 app.post('/api/users', async (req, res) => {
@@ -608,7 +726,14 @@ app.get('/api/profiles/:id/user', async (req, res) => {
 // upload profile picture for a user
 app.post(
   '/api/users/:id/profile/upload',
-  upload.single('file'),
+    (req, res, next) => {
+      upload(req, res, (err) => {
+        if (err) {
+          return res.status(400).json({ message: err.message });
+        }
+        next();
+      });
+    },
   async (req, res) => {
     try {
       const file = req.file;
