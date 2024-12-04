@@ -10,11 +10,7 @@ User.init(
       primaryKey: true,
       autoIncrement: true,
     },
-    firstname: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
-    lastname: {
+    name: {
       type: DataTypes.STRING,
       allowNull: false,
     },
@@ -23,33 +19,12 @@ User.init(
       unique: true,
       allowNull: false,
     },
-    password: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
-    profile: {
-      type: DataTypes.BLOB,
-      allowNull: true,
-    },
-    profileMimeType: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    isActive: {
-      type: DataTypes.BOOLEAN,
-      allowNull: false,
-    },
   },
   {
     sequelize,
     tableName: 'users',
     timestamps: true,
     underscored: true,
-    defaultScope: {
-      attributes: {
-        exclude: ['profile', 'profileMimeType', 'password'],
-      },
-    },
   }
 );
 

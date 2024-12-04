@@ -1,39 +1,35 @@
-import { DataTypes, Model } from 'sequelize';
-import { sequelize } from './dbconfig.js';
-import User from './User.model.js';
+import { DataTypes, Model } from "sequelize";
+import { sequelize } from "./dbconfig.js";
+import User from "./User.model.js";
 
-class Post extends Model {}
+class Package extends Model {}
 
-Post.init(
+Package.init(
   {
     id: {
       type: DataTypes.INTEGER,
       primaryKey: true,
       autoIncrement: true,
     },
-    title: {
+    name: {
       type: DataTypes.STRING,
       allowNull: false,
     },
-    content: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
-    userId: {
+    createdBy: {
       type: DataTypes.INTEGER,
       allowNull: false,
       reference: {
         model: User,
-        key: 'id',
+        key: "id",
       },
     },
   },
   {
     sequelize,
-    tableName: 'posts',
+    tableName: "packages",
     timestamps: true,
     underscored: true,
-  }
+  },
 );
 
-export default Post;
+export default Package;
