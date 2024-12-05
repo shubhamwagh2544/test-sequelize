@@ -95,32 +95,12 @@ app.post(
   },
 );
 
-// download artifact for a package
-app.get("/api/package/:id/artifacts/:artifactId", async (req, res) => {
-  const { id, artifactId } = req.params;
-  try {
-    const artifact = await Artifact.findByPk(artifactId, {
-      where: { packageId: id },
-    });
-    if (!artifact) {
-      return res.status(404).json({ error: "Artifact not found" });
-    }
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename=${artifact.name}`,
-    );
-    res.send(artifact.attachment);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-});
-
 // download bulk artifacts for a package
-app.post("/api/package/:id/artifacts/download", async (req, res) => {
+app.get("/api/package/:id/artifacts/bulk", async (req, res) => {
   const { id } = req.params;
   try {
     const pkg = await Package.findByPk(id, {
-      include: Artifact,
+      include: Artifact.unscoped(),
     });
 
     if (!pkg) {
@@ -131,11 +111,31 @@ app.post("/api/package/:id/artifacts/download", async (req, res) => {
     res.attachment(`${pkg.name}.zip`);
     zip.pipe(res);
 
-    pkg.artifacts.forEach((artifact) => {
+    pkg.Artifacts.forEach((artifact) => {
       zip.append(artifact.attachment, { name: artifact.name });
     });
 
     await zip.finalize();
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// download artifact for a package
+app.get("/api/package/:id/artifacts/:artifactId", async (req, res) => {
+  const { id, artifactId } = req.params;
+  try {
+    const artifact = await Artifact.unscoped().findByPk(artifactId, {
+      where: { packageId: id },
+    });
+    if (!artifact) {
+      return res.status(404).json({ error: "Artifact not found" });
+    }
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=${artifact.name}`,
+    );
+    res.send(artifact.attachment);
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
